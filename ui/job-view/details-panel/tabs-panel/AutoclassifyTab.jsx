@@ -6,15 +6,17 @@ import { react2angular } from 'react2angular/index.es2015';
 import ErrorLineData from './autoclassify/ErrorLineModel';
 import AutoclassifyToolbar from './autoclassify/AutoclassifyToolbar';
 import ErrorLine from './autoclassify/ErrorLine';
-import { getLogViewerUrl, getApiUrl, getProjectJobUrl } from "../helpers/urlHelper";
-import { thEvents } from "../js/constants";
-import treeherder from "../js/treeherder";
+import { getLogViewerUrl, getApiUrl, getProjectJobUrl } from "../../../helpers/urlHelper";
+import { thEvents } from "../../../js/constants";
+import treeherder from "../../../js/treeherder";
+import { with$injector } from '../../../context/InjectorContext';
+import { withUser } from '../../../context/UserContext';
 
 class AutoclassifyTab extends React.Component {
   static getDerivedStateFromProps(nextProps) {
     const { user } = nextProps;
 
-    return { canClassify: user.loggedin && user.is_staff };
+    return { canClassify: user.isLoggedIn && user.isStaff };
   }
 
   constructor(props) {
@@ -24,7 +26,6 @@ class AutoclassifyTab extends React.Component {
 
     this.$rootScope = $injector.get('$rootScope');
     this.thNotify = $injector.get('thNotify');
-    this.thPinboard = $injector.get('thPinboard');
     this.ThTextLogErrorsModel = $injector.get('ThTextLogErrorsModel');
 
     this.state = {
@@ -155,11 +156,11 @@ class AutoclassifyTab extends React.Component {
   }
 
   /**
-   * Pin selected job to the pinboard
+   * Pin selected job to the pinBoard
    */
   onPin() {
     //TODO: consider whether this should add bugs or mark all lines as ignored
-    this.thPinboard.pinJob(this.props.job);
+    this.props.pinBoard.pinJob(this.props.job);
   }
 
   onToggleEditable() {
@@ -523,20 +524,23 @@ class AutoclassifyTab extends React.Component {
 
 AutoclassifyTab.propTypes = {
   $injector: PropTypes.object.isRequired,
+  pinBoard: PropTypes.object.isRequired,
+  user: PropTypes.object.isRequired,
   job: PropTypes.object.isRequired,
   hasLogs: PropTypes.bool.isRequired,
   autoclassifyStatus: PropTypes.string,
-  user: PropTypes.object,
   logsParsed: PropTypes.bool,
   logParseStatus: PropTypes.string,
 };
 
 AutoclassifyTab.defaultProps = {
   autoclassifyStatus: 'pending',
-  user: { is_staff: false, loggedin: false },
+  user: { isStaff: false, isLoggedIn: false },
   logsParsed: false,
   logParseStatus: 'pending',
 };
+
+export default with$injector(withUser(AutoclassifyTab));
 
 treeherder.component('autoclassifyTab', react2angular(
   AutoclassifyTab,

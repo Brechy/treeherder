@@ -3,7 +3,11 @@ import PropTypes from 'prop-types';
 import { Alert } from 'reactstrap';
 import PushActionMenu from './PushActionMenu';
 import { toDateStr } from '../helpers/displayHelper';
-import { thPinboardCountError, thEvents } from "../js/constants";
+import {
+  thPinboardCountError,
+  thEvents,
+  thPinboardMaxSize
+} from "../js/constants";
 
 function Author(props) {
   const authorMatch = props.author.match(/\<(.*?)\>+/);
@@ -57,7 +61,6 @@ export default class PushHeader extends React.PureComponent {
     this.$rootScope = $injector.get('$rootScope');
     this.thJobFilters = $injector.get('thJobFilters');
     this.thNotify = $injector.get('thNotify');
-    this.thPinboard = $injector.get('thPinboard');
     this.thBuildApi = $injector.get('thBuildApi');
     this.ThResultSetStore = $injector.get('ThResultSetStore');
     this.ThResultSetModel = $injector.get('ThResultSetModel');
@@ -113,13 +116,13 @@ export default class PushHeader extends React.PureComponent {
   }
 
   triggerNewJobs() {
-    const { loggedIn, pushId } = this.props;
+    const { isLoggedIn, pushId } = this.props;
 
     if (!window.confirm(
         'This will trigger all selected jobs. Click "OK" if you want to proceed.')) {
       return;
     }
-    if (loggedIn) {
+    if (isLoggedIn) {
       const builderNames = this.ThResultSetStore.getSelectedRunnableJobs(pushId);
       this.ThResultSetStore.getGeckoDecisionTaskId(pushId).then((decisionTaskID) => {
         this.ThResultSetModel.triggerNewJobs(builderNames, decisionTaskID).then((result) => {
@@ -137,10 +140,10 @@ export default class PushHeader extends React.PureComponent {
   }
 
   cancelAllJobs() {
-    const { repoName, revision, loggedIn, pushId } = this.props;
+    const { repoName, revision, isLoggedIn, pushId } = this.props;
 
     this.setState({ showConfirmCancelAll: false });
-    if (!loggedIn) return;
+    if (!isLoggedIn) return;
 
     this.ThResultSetModel.cancelAll(pushId).then(() => (
         this.thBuildApi.cancelAll(repoName, revision)
@@ -154,16 +157,12 @@ export default class PushHeader extends React.PureComponent {
   }
 
   pinAllShownJobs() {
-    if (!this.thPinboard.spaceRemaining()) {
-      this.thNotify.send(thPinboardCountError, 'danger');
-      return;
-    }
     const shownJobs = this.ThResultSetStore.getAllShownJobs(
-      this.thPinboard.spaceRemaining(),
+      thPinboardMaxSize,
       thPinboardCountError,
       this.props.pushId
     );
-    this.thPinboard.pinJobs(shownJobs);
+    this.$rootScope.$emit(thEvents.pinAllShownJobs, shownJobs);
 
     if (!this.$rootScope.selectedJob) {
       this.$rootScope.$emit(thEvents.jobClick, shownJobs[0]);
@@ -171,11 +170,11 @@ export default class PushHeader extends React.PureComponent {
   }
 
   render() {
-    const { repoName, loggedIn, pushId, isStaff, jobCounts, author,
+    const { repoName, isLoggedIn, pushId, isStaff, jobCounts, author,
             revision, runnableVisible, $injector, watchState,
             showRunnableJobsCb, hideRunnableJobsCb, cycleWatchState } = this.props;
     const { filterParams } = this.state;
-    const cancelJobsTitle = loggedIn ?
+    const cancelJobsTitle = isLoggedIn ?
       "Cancel all jobs" :
       "Must be logged in to cancel jobs";
     const counts = jobCounts || { pending: 0, running: 0, completed: 0 };
@@ -222,7 +221,7 @@ export default class PushHeader extends React.PureComponent {
               rel="noopener"
               title="View details on failed test results for this push"
             >View Tests</a>
-            {loggedIn &&
+            {isLoggedIn &&
               <button
                 className="btn btn-sm btn-push cancel-all-jobs-btn"
                 title={cancelJobsTitle}
@@ -255,7 +254,7 @@ export default class PushHeader extends React.PureComponent {
               >Trigger New Jobs</button>
             }
             <PushActionMenu
-              loggedIn={loggedIn}
+              isLoggedIn={isLoggedIn}
               isStaff={isStaff || false}
               runnableVisible={runnableVisible}
               revision={revision}
@@ -302,7 +301,7 @@ PushHeader.propTypes = {
   cycleWatchState: PropTypes.func.isRequired,
   jobCounts: PropTypes.object,
   watchState: PropTypes.string,
-  loggedIn: PropTypes.bool,
+  isLoggedIn: PropTypes.bool,
   isStaff: PropTypes.bool,
   urlBasePath: PropTypes.string,
 };
@@ -310,7 +309,7 @@ PushHeader.propTypes = {
 PushHeader.defaultProps = {
   jobCounts: null,
   watchState: 'none',
-  loggedIn: false,
+  isLoggedIn: false,
   isStaff: false,
   urlBasePath: '',
 };
