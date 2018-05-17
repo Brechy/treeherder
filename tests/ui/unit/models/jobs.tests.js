@@ -1,7 +1,8 @@
-import '../../../../ui/js/models/job.js';
+import JobModel from '../../../../ui/models/job';
 import { getProjectUrl } from "../../../../ui/helpers/urlHelper";
+import * as jasmine from 'jasmine-ajax';
 
-describe('ThJobModel', function(){
+describe('JobModel', () => {
 
     var $httpBackend,
         $timeout,
@@ -20,7 +21,7 @@ describe('ThJobModel', function(){
         }
     }));
 
-    describe("get_list", function(){
+    describe("getList", function(){
         beforeEach(inject(function () {
             $httpBackend.whenGET(getProjectUrl('/jobs/', foregroundRepo)).respond(
                 getJSONFixture('job_list/job_1.json')
@@ -28,7 +29,7 @@ describe('ThJobModel', function(){
         }));
 
         it("should return a promise", function(){
-            var result = ThJobModel.get_list(foregroundRepo);
+            var result = ThJobModel.getList(foregroundRepo);
             $httpBackend.flush();
             expect(result.then).toBeDefined();
             $httpBackend.verifyNoOutstandingRequest();
@@ -45,7 +46,7 @@ describe('ThJobModel', function(){
             }));
 
             it("should return a page of results by default", function(){
-                var result = ThJobModel.get_list(
+                var result = ThJobModel.getList(
                     foregroundRepo,
                     {count: 2}
                 ).
@@ -57,7 +58,7 @@ describe('ThJobModel', function(){
             });
 
             it("should return all the pages when fetch_all==true", function(){
-                var result = ThJobModel.get_list(
+                var result = ThJobModel.getList(
                     foregroundRepo,
                     {count: 2},
                     {fetch_all: true}

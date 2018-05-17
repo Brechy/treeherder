@@ -9,6 +9,10 @@ import tcJobActionsTemplate from '../partials/main/tcjobactions.html';
 import intermittentTemplate from '../partials/main/intermittent.html';
 import { getStatus, isReftest } from '../helpers/jobHelper';
 import {
+  formatModelError,
+  formatTaskclusterError
+} from '../helpers/errorMessageHelper';
+import {
   getBugUrl,
   getSlaveHealthUrl,
   getInspectTaskUrl,
@@ -16,25 +20,30 @@ import {
   getReftestUrl,
 } from '../helpers/urlHelper';
 import { thEvents } from "../js/constants";
+import JobModel from '../models/job';
+import JobDetailModel from '../models/job_detail';
+import TextLogStepModel from '../models/text_log_step';
+import JobClassificationModel from '../models/classification';
+import BugJobMapModel from '../models/bug_job_map';
+import BugSuggestionsModel from '../models/bug_suggestions';
+import JobLogUrlModel from '../models/job_log_url';
 
 treeherder.controller('PluginCtrl', [
     '$scope', '$rootScope', '$location', '$http', '$interpolate', '$uibModal',
-    'ThJobClassificationModel',
-    'thClassificationTypes', 'ThJobModel', 'dateFilter',
-    'numberFilter', 'ThBugJobMapModel', 'thJobFilters',
+    'thClassificationTypes', 'dateFilter',
+    'numberFilter', 'thJobFilters',
     '$q', 'thPinboard',
-    'ThJobDetailModel', 'thBuildApi', 'thNotify', 'ThJobLogUrlModel', 'ThModelErrors', 'ThTaskclusterErrors',
+    'thBuildApi', 'thNotify',
     'thTabs', '$timeout', 'ThResultSetStore',
-    'PhSeries', 'tcactions', 'ThBugSuggestionsModel', 'ThTextLogStepModel',
+    'PhSeries', 'tcactions',
     function PluginCtrl(
         $scope, $rootScope, $location, $http, $interpolate, $uibModal,
-        ThJobClassificationModel,
-        thClassificationTypes, ThJobModel, dateFilter,
-        numberFilter, ThBugJobMapModel, thJobFilters,
+        thClassificationTypes, dateFilter,
+        numberFilter, thJobFilters,
         $q, thPinboard,
-        ThJobDetailModel, thBuildApi, thNotify, ThJobLogUrlModel, ThModelErrors, ThTaskclusterErrors, thTabs,
+        thBuildApi, thNotify, thTabs,
         $timeout, ThResultSetStore, PhSeries,
-        tcactions, ThBugSuggestionsModel, ThTextLogStepModel) {
+        tcactions) {
 
         $scope.job = {};
         $scope.revisionList = [];
@@ -86,10 +95,7 @@ treeherder.controller('PluginCtrl', [
 
         $scope.loadBugSuggestions = function () {
             $scope.errors = [];
-            ThBugSuggestionsModel.query({
-                project: $rootScope.repoName,
-                jobId: $scope.job.id
-            }, (suggestions) => {
+            BugSuggestionsModel.get($scope.job.id).then((suggestions) => {
                 suggestions.forEach(function (suggestion) {
                     suggestion.bugs.too_many_open_recent = (
                         suggestion.bugs.open_recent.length > $scope.bug_limit
@@ -114,10 +120,7 @@ treeherder.controller('PluginCtrl', [
                 // the log (we can do this asynchronously, it should normally be
                 // fast)
                 if (!suggestions.length) {
-                    ThTextLogStepModel.query({
-                        project: $rootScope.repoName,
-                        jobId: $scope.job.id
-                    }, function (textLogSteps) {
+                    TextLogStepModel.get($scope.job.id).then((textLogSteps) => {
                         $scope.errors = textLogSteps
                             .filter(step => step.result !== 'success')
                             .map(function (step) {
@@ -193,17 +196,16 @@ treeherder.controller('PluginCtrl', [
 
                 $scope.job = {};
                 $scope.job_details = [];
-                const jobPromise = ThJobModel.get(
+                const jobPromise = JobModel.get(
                     $scope.repoName, job.id,
                     { timeout: selectJobPromise });
 
-                const jobDetailPromise = ThJobDetailModel.getJobDetails(
+                const jobDetailPromise = JobDetailModel.getJobDetails(
                     { job_guid: job.job_guid },
                     { timeout: selectJobPromise });
 
-                const jobLogUrlPromise = ThJobLogUrlModel.get_list(
-                    job.id,
-                    { timeout: selectJobPromise });
+                const jobLogUrlPromise = JobLogUrlModel.getList(
+                  { job_id: job.id });
 
                 const phSeriesPromise = PhSeries.getSeriesData(
                     $scope.repoName, { job_id: job.id });
@@ -351,8 +353,8 @@ treeherder.controller('PluginCtrl', [
                 // then buildbot that a retrigger has been requested (eg mozilla-taskcluster).
                 // The second is when we have the buildapi id and need to send a request
                 // to the self serve api (which does not listen over pulse!).
-                ThJobModel.retrigger($scope.repoName, job_id_list).then(function () {
-                    return ThJobDetailModel.getJobDetails({
+                JobModel.retrigger($scope.repoName, job_id_list).then(function () {
+                    return JobDetailModel.getJobDetails({
                         title: "buildbot_request_id",
                         repository: $scope.repoName,
                         job_id__in: job_id_list.join(',')
@@ -367,7 +369,7 @@ treeherder.controller('PluginCtrl', [
                 }, function (e) {
                     // Generic error eg. the user doesn't have LDAP access
                     thNotify.send(
-                        ThModelErrors.format(e, "Unable to send retrigger"), 'danger');
+                        formatModelError(e, "Unable to send retrigger"), 'danger');
                 });
             } else {
                 thNotify.send("Must be logged in to retrigger a job", 'danger');
@@ -409,7 +411,7 @@ treeherder.controller('PluginCtrl', [
                                     }, function (e) {
                                         // The full message is too large to fit in a Treeherder
                                         // notification box.
-                                        $scope.$apply(thNotify.send(ThTaskclusterErrors.format(e), 'danger', { sticky: true }));
+                                        $scope.$apply(thNotify.send(formatTaskclusterError(e), 'danger', { sticky: true }));
                                     });
                                 }
                             }
@@ -442,7 +444,7 @@ treeherder.controller('PluginCtrl', [
                                 }, function (e) {
                                     // The full message is too large to fit in a Treeherder
                                     // notification box.
-                                    $scope.$apply(thNotify.send(ThTaskclusterErrors.format(e), 'danger', { sticky: true }));
+                                    $scope.$apply(thNotify.send(formatTaskclusterError(e), 'danger', { sticky: true }));
                                 });
                             });
                         });
@@ -492,11 +494,11 @@ treeherder.controller('PluginCtrl', [
                                                          job => job.id);
             // get buildbot ids of any buildbot jobs we want to cancel
             // first
-            ThJobDetailModel.getJobDetails({
+            JobDetailModel.getJobDetails({
                 job_id__in: jobIdsToCancel,
                 title: 'buildbot_request_id'
             }).then(function (buildbotRequestIdDetails) {
-                return ThJobModel.cancel($scope.repoName, jobIdsToCancel).then(
+                return JobModel.cancel($scope.repoName, jobIdsToCancel).then(
                     function () {
                         buildbotRequestIdDetails.forEach(
                             function (buildbotRequestIdDetail) {
@@ -508,7 +510,7 @@ treeherder.controller('PluginCtrl', [
                 thNotify.send("Cancel request sent", "success");
             }).catch(function (e) {
                 thNotify.send(
-                    ThModelErrors.format(e, "Unable to cancel job"),
+                    formatModelError(e, "Unable to cancel job"),
                     "danger",
                     { sticky: true }
                 );
@@ -592,7 +594,7 @@ treeherder.controller('PluginCtrl', [
         // load the list of existing classifications (including possibly a new one just
         // added).
         $scope.updateClassifications = function () {
-            ThJobClassificationModel.get_list({ job_id: $scope.job.id }).then(function (response) {
+            JobClassificationModel.get_list({ job_id: $scope.job.id }).then(function (response) {
                 $scope.classifications = response;
                 $scope.latestClassification = $scope.classifications[0];
             });
@@ -602,7 +604,7 @@ treeherder.controller('PluginCtrl', [
         // added).
         $scope.updateBugs = function () {
             if (_.has($scope.job, "id")) {
-                ThBugJobMapModel.get_list({ job_id: $scope.job.id }).then(function (response) {
+                BugJobMapModel.getList({ job_id: $scope.job.id }).then(function (response) {
                     $scope.bugs = response;
                 });
             }

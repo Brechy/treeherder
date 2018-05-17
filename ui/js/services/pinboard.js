@@ -2,19 +2,20 @@ import _ from 'lodash';
 
 import treeherder from '../treeherder';
 import { thPinboardCountError, thEvents } from "../constants";
+import JobClassificationModel from '../../models/classification';
+import BugJobMapModel from '../../models/bug_job_map';
+import { formatModelError } from '../../helpers/errorMessageHelper';
 
 treeherder.factory('thPinboard', [
-    'ThJobClassificationModel', '$rootScope',
-    'ThBugJobMapModel', 'thNotify', 'ThModelErrors', 'ThResultSetStore',
+    '$rootScope', 'thNotify', 'ThResultSetStore',
     function (
-        ThJobClassificationModel, $rootScope,
-        ThBugJobMapModel, thNotify, ThModelErrors, ThResultSetStore) {
+        $rootScope, thNotify, ThResultSetStore) {
 
         const pinnedJobs = {};
         const relatedBugs = {};
 
         const saveClassification = function (job) {
-            const classification = new ThJobClassificationModel(this);
+            const classification = new JobClassificationModel(this);
 
             // classification can be left unset making this a no-op
             if (classification.failure_classification_id > 0) {
@@ -30,7 +31,7 @@ treeherder.factory('thPinboard', [
                     }).catch((response) => {
                         const message = "Error saving classification for " + job.platform + " " + job.job_type_name;
                         thNotify.send(
-                            ThModelErrors.format(response, message),
+                            formatModelError(response, message),
                             "danger"
                         );
                     });
@@ -39,7 +40,7 @@ treeherder.factory('thPinboard', [
 
         const saveBugs = function (job) {
             Object.values(relatedBugs).forEach(function (bug) {
-                const bjm = new ThBugJobMapModel({
+                const bjm = new BugJobMapModel({
                     bug_id: bug.id,
                     job_id: job.id,
                     type: 'annotation'
@@ -50,7 +51,7 @@ treeherder.factory('thPinboard', [
                     }).catch((response) => {
                         const message = "Error saving bug association for " + job.platform + " " + job.job_type_name;
                         thNotify.send(
-                            ThModelErrors.format(response, message),
+                            formatModelError(response, message),
                             "danger"
                         );
                     });
@@ -112,7 +113,7 @@ treeherder.factory('thPinboard', [
 
             // open form to create a new note. default to intermittent
             createNewClassification: function () {
-                return new ThJobClassificationModel({
+                return new JobClassificationModel({
                     text: "",
                     who: null,
                     failure_classification_id: 4
