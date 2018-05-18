@@ -1453,6 +1453,7 @@ class TextLogError(models.Model):
             return None
 
 
+@python_2_unicode_compatible
 class TextLogErrorMetadata(models.Model):
     """Optional, mutable, data that can be associated with a TextLogError."""
 
@@ -1477,6 +1478,10 @@ class TextLogErrorMetadata(models.Model):
 
     class Meta:
         db_table = "text_log_error_metadata"
+
+    def __str__(self):
+        args = (self.text_log_error_id, self.failure_line_id)
+        return 'TextLogError={} FailureLine={}'.format(*args)
 
 
 class TextLogErrorMatch(models.Model):
