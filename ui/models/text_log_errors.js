@@ -1,8 +1,9 @@
 import {
   getProjectJobUrl,
   getApiUrl,
-  createQueryParams, getWriteHeaders
+  createQueryParams
 } from '../helpers/urlHelper';
+import { putJson } from "../helpers/fetchHelper";
 
 export default class TextLogErrorsModel {
   constructor(data) {
@@ -25,25 +26,16 @@ export default class TextLogErrorsModel {
   }
 
   static verify(lineId, bestClassification, bugNumber) {
-    return fetch(
-      getApiUrl(`/text-log-error/${lineId}/`), {
-        body: {
-          best_classification: bestClassification,
-          bug_number: bugNumber
-        },
-        method: 'PUT',
-        headers: getWriteHeaders(),
-      });
+    return putJson(
+      getApiUrl(`/text-log-error/${lineId}/`),
+      { best_classification: bestClassification, bug_number: bugNumber }
+    );
   }
 
   static verifyMany(body) {
     if (!body.length) {
       return Promise.resolve();
     }
-    return fetch(getApiUrl("/text-log-error/"), {
-      body: JSON.stringify(body),
-      method: 'PUT',
-      headers: getWriteHeaders(),
-    }).then(resp => resp.json());
+    return putJson(getApiUrl("/text-log-error/"), body).then(resp => resp.json());
   }
 }

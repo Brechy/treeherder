@@ -1,4 +1,5 @@
-import { createQueryParams, getProjectUrl, getWriteHeaders } from "../helpers/urlHelper";
+import { createQueryParams, getProjectUrl } from "../helpers/urlHelper";
+import { deleteRecord, postJson } from "../helpers/fetchHelper";
 
 const uri = getProjectUrl("/bug-job-map/");
 
@@ -21,17 +22,10 @@ export default class BugJobMapModel {
   }
 
   create() {
-    return fetch(uri, {
-      method: 'POST',
-      body: JSON.stringify(this),
-      headers: getWriteHeaders(),
-    });
+    return postJson(uri, this);
   }
 
   delete() {
-    return fetch(`${uri}${this.job_id}-${this.bug_id}/`, {
-      method: 'DELETE',
-      headers: getWriteHeaders(),
-    });
+    return deleteRecord(`${uri}${this.job_id}-${this.bug_id}/`);
   }
 }

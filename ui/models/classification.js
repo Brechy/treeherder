@@ -1,4 +1,5 @@
-import { createQueryParams, getProjectUrl, getWriteHeaders } from '../helpers/urlHelper';
+import { createQueryParams, getProjectUrl } from '../helpers/urlHelper';
+import { deleteRecord, postJson } from '../helpers/fetchHelper';
 
 const uri = getProjectUrl("/note/");
 
@@ -23,19 +24,12 @@ export default class JobClassificationModel {
 
   // an instance method to create a new JobClassificationModel
   create() {
-    return fetch(uri, {
-      body: JSON.stringify(this),
-      method: 'POST',
-      headers: getWriteHeaders(),
-    });
+    return postJson(uri, this);
   }
 
   // an instance method to delete a JobClassificationModel object
   delete() {
-    return fetch(`${uri}${this.id}/`, {
-      method: 'DELETE',
-      headers: getWriteHeaders(),
-    });
+    return deleteRecord(`${uri}${this.id}/`);
   }
 
 }

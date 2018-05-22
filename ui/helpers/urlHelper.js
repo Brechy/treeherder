@@ -1,5 +1,4 @@
 import { Queue } from 'taskcluster-client-web';
-import Cookies from 'js-cookie';
 
 import thTaskcluster from "../js/services/taskcluster";
 import { getUrlParam, getAllUrlParams } from './locationHelper';
@@ -142,12 +141,4 @@ export const createApiUrl = function createApiUrl(api, params) {
 export const bugzillaBugsApi = function bugzillaBugsApi(api, params) {
   const query = createQueryParams(params);
   return `https://bugzilla.mozilla.org/${api}${query}`;
-};
-
-export const getWriteHeaders = function getWriteHeaders() {
-  return new Headers({
-    'X-CSRFToken': Cookies.get('csrftoken'),
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  });
 };
