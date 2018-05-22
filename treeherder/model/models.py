@@ -10,6 +10,7 @@ from hashlib import sha1
 import newrelic.agent
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator
 from django.db import (models,
                        transaction)
@@ -1514,6 +1515,9 @@ class TextLogErrorMatch(models.Model):
     @classmethod
     def create(cls, classified_failure_id, matcher_name, score, text_log_error):
         """Create a TextLogErrorMatch and matching FailureMatch."""
+        if matcher_name not in settings.AUTOCLASSIFY_MATCHERS:
+            raise ValidationError('Unknown matcher "{}", not saving match'.format(matcher_name))
+
         TextLogErrorMatch.objects.create(
             score=score,
             matcher_name=matcher_name,
